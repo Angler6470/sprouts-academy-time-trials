@@ -443,7 +443,10 @@ export default function App() {
             </div>
           </div>
           <div className="hero-preview">
-            <div className="preview-badge">Best Score: {bestScore}</div>
+            <div className="preview-badge">
+              <span className="preview-badge-label">Best Score</span>
+              <strong className="preview-badge-value">{bestScore}</strong>
+            </div>
           </div>
         </header>
 
@@ -524,13 +527,13 @@ function HomeScreen({ selectedMode, setSelectedMode, settings, onSettingChange, 
               <h2>Ready for launch</h2>
             </div>
           </div>
-          <div className="summary-grid">
+          <div className="summary-grid session-preview-grid">
             <SummaryTile label="Starting lives" value={normalizedSettings.startingLives} />
             <SummaryTile label="Timer" value={`${normalizedSettings.timerSeconds}s`} />
             <SummaryTile label="Opening difficulty" value={nextDifficulty} />
-            <SummaryTile label="Best score" value={bestScore} />
+            <SummaryTile label="Best score" value={bestScore} className="best-score-tile" />
           </div>
-          <div className={`feedback-banner tone-${feedback.tone}`}>
+          <div className={`feedback-banner home-feedback-banner tone-${feedback.tone}`}>
             <strong>{feedback.title}</strong>
             <span>{feedback.detail}</span>
           </div>
@@ -823,9 +826,9 @@ function SelectSetting({ id, label, helper, value, options, onChange, disabled =
   );
 }
 
-function SummaryTile({ label, value }) {
+function SummaryTile({ label, value, className = '' }) {
   return (
-    <div className="summary-tile">
+    <div className={`summary-tile ${className}`.trim()}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
