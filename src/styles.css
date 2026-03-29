@@ -86,6 +86,29 @@ button:focus-visible {
   overflow-x: hidden;
 }
 
+.app-shell::after {
+  content: '';
+  position: fixed;
+  inset: 8px;
+  border: 8px solid transparent;
+  border-radius: 28px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 20;
+}
+
+.app-shell.answer-flash-correct::after {
+  border-color: rgba(25, 124, 84, 0.75);
+  opacity: 1;
+  animation: app-answer-flash 320ms ease-out;
+}
+
+.app-shell.answer-flash-wrong::after {
+  border-color: rgba(209, 74, 99, 0.78);
+  opacity: 1;
+  animation: app-answer-flash 320ms ease-out;
+}
+
 .app-backdrop {
   position: fixed;
   inset: 0;
@@ -925,6 +948,23 @@ button:focus-visible {
   }
 }
 
+@keyframes app-answer-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.995);
+  }
+
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.005);
+  }
+}
+
 .run-stats-panel {
   display: flex;
   align-items: center;
@@ -1077,5 +1117,11 @@ button:focus-visible {
   .ghost-button,
   .answer-button {
     min-height: 56px;
+  }
+
+  .app-shell::after {
+    inset: 4px;
+    border-width: 6px;
+    border-radius: 20px;
   }
 }

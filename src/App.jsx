@@ -22,6 +22,7 @@ const MODE_OPTIONS = [
 
 const FEEDBACK_TIMEOUT_MS = 2200;
 const QUESTION_ADVANCE_DELAY_MS = 850;
+const ANSWER_FLASH_MS = 320;
 const CHALLENGE_MODE_OPTIONS = [
   { value: 'adaptive', label: 'Adaptive', helper: 'Starts easy, shifts to medium at 5 correct, then hard at 10 correct.' },
   { value: 'easy', label: 'Locked Easy', helper: 'Keeps the whole run in gentle practice mode.' },
@@ -68,9 +69,11 @@ export default function App() {
     detail: 'Set the rules in Parent Controls, then start a survival run.',
   });
   const [showHint, setShowHint] = useState(false);
+  const [answerFlash, setAnswerFlash] = useState('none');
 
   const advanceTimeoutRef = useRef(null);
   const feedbackTimeoutRef = useRef(null);
+  const answerFlashTimeoutRef = useRef(null);
 
   const activeSettings = run?.settings ?? normalizeSurvivalSettings(settings);
 
@@ -82,6 +85,10 @@ export default function App() {
 
       if (feedbackTimeoutRef.current) {
         window.clearTimeout(feedbackTimeoutRef.current);
+      }
+
+      if (answerFlashTimeoutRef.current) {
+        window.clearTimeout(answerFlashTimeoutRef.current);
       }
     };
   }, []);
@@ -211,6 +218,17 @@ export default function App() {
 
   function applyFeedback(nextFeedback) {
     setFeedback(nextFeedback);
+  }
+
+  function triggerAnswerFlash(tone) {
+    if (answerFlashTimeoutRef.current) {
+      window.clearTimeout(answerFlashTimeoutRef.current);
+    }
+
+    setAnswerFlash(tone);
+    answerFlashTimeoutRef.current = window.setTimeout(() => {
+      setAnswerFlash('none');
+    }, ANSWER_FLASH_MS);
   }
 
   function handleBestScoreReset() {
@@ -400,6 +418,8 @@ export default function App() {
         latestBonus: rewardResult.totalReward,
       };
 
+      triggerAnswerFlash('correct');
+
       applyFeedback({
         tone: rewardResult.totalReward > 0 ? 'bonus' : 'success',
         title: rewardResult.totalReward > 0 ? rewardCopy : 'Correct answer',
@@ -420,6 +440,8 @@ export default function App() {
         latestBonus: 0,
       };
 
+      triggerAnswerFlash('wrong');
+
       endReason = livesRemaining <= 0 ? 'Out of lives' : '';
       applyFeedback({
         tone: 'danger',
@@ -438,6 +460,8 @@ export default function App() {
           streak: 0,
           latestBonus: 0,
         };
+
+        triggerAnswerFlash('wrong');
 
         endReason = livesRemaining <= 0 ? 'Out of lives' : '';
         applyFeedback({
@@ -485,7 +509,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell answer-flash-${answerFlash}`}>
       <div className="app-backdrop" aria-hidden="true" />
       <main className="app-main">
         <header className="hero-card">
