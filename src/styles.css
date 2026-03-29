@@ -150,6 +150,25 @@ button:focus-visible {
   color: var(--text-strong);
 }
 
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.hero-brand-copy {
+  min-width: 0;
+}
+
+.hero-logo {
+  width: clamp(54px, 7vw, 78px);
+  height: clamp(54px, 7vw, 78px);
+  object-fit: contain;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 10px 14px rgba(18, 122, 109, 0.18));
+}
+
 .hero-copy h1 {
   font-size: clamp(1.55rem, 3vw, 2.45rem);
   line-height: 1.08;
@@ -818,6 +837,10 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .hero-brand {
+    align-items: flex-start;
+  }
+
   .settings-panel {
     max-height: none;
   }
@@ -898,6 +921,10 @@ button:focus-visible {
 @media (max-width: 520px) {
   .app-main {
     width: calc(100% - 0.75rem);
+  }
+
+  .hero-brand {
+    gap: 0.7rem;
   }
 
   .hero-copy h1 {

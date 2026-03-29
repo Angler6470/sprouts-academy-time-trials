@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import sproutsLogo from '../balance-seed.png';
 import { generateQuestion } from './lib/questionGenerator';
 import { loadBestScore, saveBestScore } from './lib/storage';
 import {
@@ -433,8 +434,13 @@ export default function App() {
       <main className="app-main">
         <header className="hero-card">
           <div className="hero-copy">
-            <span className="eyebrow">Sprouts Academy</span>
-            <h1>Sprouts Academy Time Trials</h1>
+            <div className="hero-brand">
+              <img className="hero-logo" src={sproutsLogo} alt="Sprouts mascot" />
+              <div className="hero-brand-copy">
+                <span className="eyebrow">Sprouts Academy</span>
+                <h1>Sprouts Academy Time Trials</h1>
+              </div>
+            </div>
           </div>
           <div className="hero-preview">
             <div className="preview-badge">Best Score: {bestScore}</div>
