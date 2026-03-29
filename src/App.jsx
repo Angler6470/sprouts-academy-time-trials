@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import sproutsLogo from '../balance-seed.png';
 import { generateQuestion } from './lib/questionGenerator';
-import { loadBestScore, saveBestScore } from './lib/storage';
+import { loadBestScore, loadParentPin, resetBestScore, saveBestScore, saveParentPin } from './lib/storage';
 import {
   DEFAULT_SURVIVAL_SETTINGS,
   DIFFICULTY_LABELS,
@@ -60,6 +60,8 @@ export default function App() {
   const [appPhase, setAppPhase] = useState('home');
   const [run, setRun] = useState(null);
   const [bestScore, setBestScore] = useState(() => loadBestScore());
+  const [parentPin, setParentPin] = useState(() => loadParentPin());
+  const [parentControlsUnlocked, setParentControlsUnlocked] = useState(false);
   const [feedback, setFeedback] = useState({
     tone: 'info',
     title: 'Ready to play?',
@@ -209,6 +211,60 @@ export default function App() {
 
   function applyFeedback(nextFeedback) {
     setFeedback(nextFeedback);
+  }
+
+  function handleBestScoreReset() {
+    if (!bestScore) {
+      return;
+    }
+
+    const confirmed = window.confirm('Reset the saved best score?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    setBestScore(resetBestScore());
+    applyFeedback({
+      tone: 'info',
+      title: 'Best score reset',
+      detail: 'The saved best score has been cleared.',
+    });
+  }
+
+  function handleCreateParentPin(pin) {
+    const nextPin = saveParentPin(pin);
+
+    if (!nextPin) {
+      return false;
+    }
+
+    setParentPin(nextPin);
+    setParentControlsUnlocked(true);
+    applyFeedback({
+      tone: 'info',
+      title: 'Parent controls secured',
+      detail: 'Your 4-digit PIN is set. You can now adjust the parent controls.',
+    });
+    return true;
+  }
+
+  function handleUnlockParentControls(pin) {
+    if (pin !== parentPin) {
+      return false;
+    }
+
+    setParentControlsUnlocked(true);
+    applyFeedback({
+      tone: 'info',
+      title: 'Parent controls unlocked',
+      detail: 'Settings are open for changes until you lock them again.',
+    });
+    return true;
+  }
+
+  function handleLockParentControls() {
+    setParentControlsUnlocked(false);
   }
 
   function applySettings(nextValues) {
@@ -447,6 +503,11 @@ export default function App() {
               <span className="preview-badge-label">Best Score</span>
               <strong className="preview-badge-value">{bestScore}</strong>
             </div>
+            {bestScore > 0 && (
+              <button type="button" className="preview-reset-button" onClick={handleBestScoreReset}>
+                Reset score
+              </button>
+            )}
           </div>
         </header>
 
@@ -460,6 +521,11 @@ export default function App() {
             onStart={beginRun}
             bestScore={bestScore}
             feedback={feedback}
+            parentPinExists={Boolean(parentPin)}
+            parentControlsUnlocked={parentControlsUnlocked}
+            onCreateParentPin={handleCreateParentPin}
+            onUnlockParentControls={handleUnlockParentControls}
+            onLockParentControls={handleLockParentControls}
           />
         )}
 
@@ -489,10 +555,79 @@ export default function App() {
   );
 }
 
-function HomeScreen({ selectedMode, setSelectedMode, settings, onSettingChange, onChallengeModeChange, onStart, bestScore, feedback }) {
+function HomeScreen({
+  selectedMode,
+  setSelectedMode,
+  settings,
+  onSettingChange,
+  onChallengeModeChange,
+  onStart,
+  bestScore,
+  feedback,
+  parentPinExists,
+  parentControlsUnlocked,
+  onCreateParentPin,
+  onUnlockParentControls,
+  onLockParentControls,
+}) {
   const normalizedSettings = normalizeSurvivalSettings(settings);
   const nextDifficulty = DIFFICULTY_LABELS[getActiveDifficulty(normalizedSettings, 0)];
   const challengeMode = normalizedSettings.autoDifficultyScaling ? 'adaptive' : normalizedSettings.lockedDifficulty;
+  const [createPin, setCreatePin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [unlockPin, setUnlockPin] = useState('');
+  const [parentMessage, setParentMessage] = useState('');
+
+  useEffect(() => {
+    setCreatePin('');
+    setConfirmPin('');
+    setUnlockPin('');
+    setParentMessage('');
+  }, [parentPinExists, parentControlsUnlocked]);
+
+  function handleCreatePinSubmit(event) {
+    event.preventDefault();
+
+    if (!/^\d{4}$/.test(createPin)) {
+      setParentMessage('Choose a 4-digit PIN using numbers only.');
+      return;
+    }
+
+    if (createPin !== confirmPin) {
+      setParentMessage('PINs do not match yet.');
+      return;
+    }
+
+    const wasSaved = onCreateParentPin(createPin);
+
+    if (!wasSaved) {
+      setParentMessage('The PIN could not be saved. Try again.');
+      return;
+    }
+
+    setCreatePin('');
+    setConfirmPin('');
+    setParentMessage('PIN created. Parent controls are now unlocked.');
+  }
+
+  function handleUnlockSubmit(event) {
+    event.preventDefault();
+
+    if (!/^\d{4}$/.test(unlockPin)) {
+      setParentMessage('Enter the 4-digit parent PIN to unlock.');
+      return;
+    }
+
+    const wasUnlocked = onUnlockParentControls(unlockPin);
+
+    if (!wasUnlocked) {
+      setParentMessage('That PIN is not correct.');
+      return;
+    }
+
+    setUnlockPin('');
+    setParentMessage('Parent controls unlocked.');
+  }
 
   return (
     <section className="screen-grid">
@@ -546,64 +681,132 @@ function HomeScreen({ selectedMode, setSelectedMode, settings, onSettingChange, 
             <span className="section-kicker">Parent Controls</span>
             <h2>Quick setup</h2>
           </div>
-          <p>Only the most useful controls are visible here. Scoring, streak bonuses, timeout rules, and ramp tuning stay optimized in the background.</p>
-        </div>
-
-        <div className="settings-sections">
-          <SettingsSection title="Core Controls" description="The key options parents usually need, without the extra clutter.">
-            <NumberSetting
-              id="startingLives"
-              label="Starting lives"
-              helper="Choose how many mistakes a player can make before the run ends."
-              value={settings.startingLives}
-              min={1}
-              max={9}
-              onChange={(value) => onSettingChange('startingLives', value)}
-            />
-            <NumberSetting
-              id="timerSeconds"
-              label="Timer per question"
-              helper="Set the countdown length for each question."
-              value={settings.timerSeconds}
-              min={3}
-              max={60}
-              suffix="seconds"
-              onChange={(value) => onSettingChange('timerSeconds', value)}
-            />
-            <ChoiceToggleSetting
-              id="challengeMode"
-              label="Challenge level"
-              helper={CHALLENGE_MODE_OPTIONS.find((option) => option.value === challengeMode)?.helper}
-              value={challengeMode}
-              options={CHALLENGE_MODE_OPTIONS.map(({ value, label }) => ({ value, label }))}
-              onChange={onChallengeModeChange}
-            />
-          </SettingsSection>
-
-          <SettingsSection title="Helpful Supports" description="Small comfort settings that keep the game readable and friendly.">
-            <ToggleSetting
-              id="hintsEnabled"
-              label="Enable hints"
-              helper="Players can reveal a lightweight hint on the question card."
-              checked={settings.hintsEnabled}
-              onChange={(checked) => onSettingChange('hintsEnabled', checked)}
-            />
-            <ToggleSetting
-              id="showTimer"
-              label="Show visual timer"
-              helper="Keep the countdown visible or let it run quietly in the background."
-              checked={settings.showTimer}
-              onChange={(checked) => onSettingChange('showTimer', checked)}
-            />
-          </SettingsSection>
-
-          <div className="background-note">
-            <strong>Behind-the-scenes tuning</strong>
-            <span>
-              Survival keeps 10 points per correct answer, timeout penalties on, streak bonuses at 3 and 5, and adaptive mode ramps from easy to medium to hard every 5 correct answers.
-            </span>
+          <div className="parent-header-actions">
+            {parentPinExists && parentControlsUnlocked && (
+              <button type="button" className="subtle-action-button" onClick={onLockParentControls}>
+                Lock controls
+              </button>
+            )}
           </div>
         </div>
+
+        {!parentPinExists && (
+          <form className="parent-lock-card" onSubmit={handleCreatePinSubmit}>
+            <strong>Create Parent PIN</strong>
+            <p>Set a 4-digit PIN to keep the parent controls for adults only.</p>
+            <div className="pin-field-grid">
+              <label className="pin-field" htmlFor="create-parent-pin">
+                <span>New PIN</span>
+                <input
+                  id="create-parent-pin"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={createPin}
+                  onChange={(event) => setCreatePin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                />
+              </label>
+              <label className="pin-field" htmlFor="confirm-parent-pin">
+                <span>Confirm PIN</span>
+                <input
+                  id="confirm-parent-pin"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={confirmPin}
+                  onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                />
+              </label>
+            </div>
+            {parentMessage && <span className="parent-lock-message">{parentMessage}</span>}
+            <button type="submit" className="primary-button pin-action-button">
+              Save PIN and Unlock
+            </button>
+          </form>
+        )}
+
+        {parentPinExists && !parentControlsUnlocked && (
+          <form className="parent-lock-card" onSubmit={handleUnlockSubmit}>
+            <strong>Parent Controls Locked</strong>
+            <p>Enter the 4-digit parent PIN to unlock these settings.</p>
+            <label className="pin-field single" htmlFor="unlock-parent-pin">
+              <span>Parent PIN</span>
+              <input
+                id="unlock-parent-pin"
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                value={unlockPin}
+                onChange={(event) => setUnlockPin(event.target.value.replace(/\D/g, '').slice(0, 4))}
+              />
+            </label>
+            {parentMessage && <span className="parent-lock-message">{parentMessage}</span>}
+            <button type="submit" className="primary-button pin-action-button">
+              Unlock Parent Controls
+            </button>
+          </form>
+        )}
+
+        {parentControlsUnlocked && (
+          <div className="settings-sections">
+            <SettingsSection title="Core Controls" description="The key options parents usually need, without the extra clutter.">
+              <NumberSetting
+                id="startingLives"
+                label="Starting lives"
+                helper="Choose how many mistakes a player can make before the run ends."
+                value={settings.startingLives}
+                min={1}
+                max={9}
+                onChange={(value) => onSettingChange('startingLives', value)}
+              />
+              <NumberSetting
+                id="timerSeconds"
+                label="Timer per question"
+                helper="Set the countdown length for each question."
+                value={settings.timerSeconds}
+                min={3}
+                max={60}
+                suffix="seconds"
+                onChange={(value) => onSettingChange('timerSeconds', value)}
+              />
+              <ChoiceToggleSetting
+                id="challengeMode"
+                label="Challenge level"
+                helper={CHALLENGE_MODE_OPTIONS.find((option) => option.value === challengeMode)?.helper}
+                value={challengeMode}
+                options={CHALLENGE_MODE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+                onChange={onChallengeModeChange}
+              />
+            </SettingsSection>
+
+            <SettingsSection title="Helpful Supports" description="Small comfort settings that keep the game readable and friendly.">
+              <ToggleSetting
+                id="hintsEnabled"
+                label="Enable hints"
+                helper="Players can reveal a lightweight hint on the question card."
+                checked={settings.hintsEnabled}
+                onChange={(checked) => onSettingChange('hintsEnabled', checked)}
+              />
+              <ToggleSetting
+                id="showTimer"
+                label="Show visual timer"
+                helper="Keep the countdown visible or let it run quietly in the background."
+                checked={settings.showTimer}
+                onChange={(checked) => onSettingChange('showTimer', checked)}
+              />
+            </SettingsSection>
+
+            <div className="background-note">
+              <strong>Behind-the-scenes tuning</strong>
+              <span>
+                Survival keeps 10 points per correct answer, timeout penalties on, streak bonuses at 3 and 5, and adaptive mode ramps from easy to medium to hard every 5 correct answers.
+              </span>
+            </div>
+          </div>
+        )}
       </section>
     </section>
   );
