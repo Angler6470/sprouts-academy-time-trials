@@ -11,15 +11,6 @@ import {
   evaluateStreakRewards,
 } from './lib/survival';
 
-const MODE_OPTIONS = [
-  {
-    id: 'survival',
-    title: 'Survival Mode',
-    description: 'Beat the timer, protect your lives, and climb the board with streak bonuses.',
-    badge: 'New',
-  },
-];
-
 const FEEDBACK_TIMEOUT_MS = 2200;
 const QUESTION_ADVANCE_DELAY_MS = 850;
 const ANSWER_FLASH_MS = 320;
@@ -56,7 +47,6 @@ function createRunState(settings) {
 }
 
 export default function App() {
-  const [selectedMode, setSelectedMode] = useState('survival');
   const [settings, setSettings] = useState(DEFAULT_SURVIVAL_SETTINGS);
   const [appPhase, setAppPhase] = useState('home');
   const [run, setRun] = useState(null);
@@ -537,8 +527,6 @@ export default function App() {
 
         {appPhase === 'home' && (
           <HomeScreen
-            selectedMode={selectedMode}
-            setSelectedMode={setSelectedMode}
             settings={settings}
             onSettingChange={updateSetting}
             onChallengeModeChange={updateChallengeMode}
@@ -580,8 +568,6 @@ export default function App() {
 }
 
 function HomeScreen({
-  selectedMode,
-  setSelectedMode,
   settings,
   onSettingChange,
   onChallengeModeChange,
@@ -656,33 +642,10 @@ function HomeScreen({
   return (
     <section className="screen-grid">
       <div className="panel-stack">
-        <section className="panel-card compact-modes-panel">
-          <div className="panel-header">
-            <div>
-              <span className="section-kicker">Game Modes</span>
-              <h2>Choose a mode</h2>
-            </div>
-          </div>
-          <div className="mode-grid">
-            {MODE_OPTIONS.map((mode) => (
-              <div key={mode.id} className={`mode-card compact-mode-card ${selectedMode === mode.id ? 'is-active' : ''}`}>
-                <span className="mode-badge">{mode.badge}</span>
-                <div className="mode-copy">
-                  <strong>{mode.title}</strong>
-                  <p>{mode.description}</p>
-                </div>
-                <button type="button" className="primary-button slim-button" onClick={() => { setSelectedMode(mode.id); onStart(); }}>
-                  Start Survival Mode
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <section className="panel-card compact-panel">
           <div className="panel-header">
             <div>
-              <span className="section-kicker">Session Preview</span>
+              <span className="section-kicker">Survival Mode</span>
               <h2>Ready for launch</h2>
             </div>
           </div>
@@ -696,6 +659,9 @@ function HomeScreen({
             <strong>{feedback.title}</strong>
             <span>{feedback.detail}</span>
           </div>
+          <button type="button" className="primary-button" onClick={onStart}>
+            Start Survival Mode
+          </button>
         </section>
       </div>
 
